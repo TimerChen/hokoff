@@ -53,7 +53,7 @@ flags.DEFINE_string(
 
 flags.DEFINE_integer(
     "gamecore_req_timeout",
-    30000,
+    3000,
     "millisecond timeout for gamecore to wait reply from server",
 )
 
@@ -137,6 +137,7 @@ def gc_as_lib(argv):
         addrs,
         aiserver_ip=FLAGS.aiserver_ip,
     )
+    print(f"++++++++++ Start game info: addr[{gc_server_addr}, {FLAGS.aiserver_ip}], timeout[{FLAGS.gamecore_req_timeout}]")
 
     if any(FLAGS.dataset_path):
         dataset_path = [FLAGS.dataset_path[:-5] + "_" + str(i) + ".hdf5" for i in range(AGENT_NUM)]

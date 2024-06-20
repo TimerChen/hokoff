@@ -47,12 +47,22 @@ Please install other requirements by:
     pip install -r requirements.txt
 
 ## **Sample**
+Before runing sample, you should start gamecore_server of hok_env. For Hok1v1, start gamecore_server at port `23333`. For Hok3v3, start gamecore_server at port `23432`. 
+```Bash
+# hok1v1
+cd hok1v1
+bash offline_sample/scripts/start_sample.sh <model_levels_str> <eval_num> <cpu_num> <dataset_version_name> <dataset_name>
+# e.g.
+bash offline_sample/scripts/start_sample1.sh 1,1 20 1 1v1version1 norm_medium
+```
 
-    cd hok3v3
-    sh offline_sample/scripts/start_sample.sh <levels_str> <eval_num> <cpu_num> <datasets_repo_name>`<backend>` <dataset_name>
-    #e.g.
-    bash offline_sample/scripts/start_sample.sh 1,1 20 50 3v3version1 tensorflow norm_medium
-
+```Bash
+# hok3v3
+cd hok3v3
+sh offline_sample/scripts/start_sample.sh <levels_str> <eval_num> <cpu_num> <datasets_repo_name>`<backend>` <dataset_name>
+# e.g.
+bash offline_sample/scripts/start_sample.sh 1,1 20 50 3v3version1 tensorflow norm_medium
+```
 Please refer to 'start_sample.sh' and 'sample.sh' for details.
 
 **levels_str**: the levels of pre-trained models used for sampling, e.g. '1,1' for norm_medium, '2,1' for norm_expert and 'medium' for gain_gold_medium
@@ -63,7 +73,7 @@ Please refer to 'start_sample.sh' and 'sample.sh' for details.
 
 **backend**: refers to the selection of either "pytorch" or "tensorflow" models for the sampling process.
 
-**dataset_name**: refers to the name of the dataset and the folder name within the "/datasets/**dataset_repo_name**" directory in which the sampled hdf5 files are stored.
+**dataset_name**: refers to the name of the dataset and the folder name within the "datasets/**dataset_repo_name**/**dataset_name**/" directory in which the sampled hdf5 files are stored.
 
 **Notations:**
 

@@ -1,0 +1,14 @@
+#!/usr/bin/bash
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+conf=$1
+new_conf=${conf}.new
+work_dir=$(pwd)
+
+set -ex
+
+python3 ${SCRIPT_DIR}/process.py $conf $new_conf ${work_dir}
+
+# export WINEPREFIX=/.wine/runtime_1
+wine ${SCRIPT_DIR}/sgame_simulator_repeated_zmq.exe $new_conf

@@ -171,7 +171,7 @@ class Agent:
             [
                 len(self.HERO_ID_INDEX_DICT),
             ],
-            dtype=np.float,
+            dtype=np.float64,
         )
         if self.HERO_ID_INDEX_DICT.get(hero_id) is not None:
             hero_id_vec[self.HERO_ID_INDEX_DICT[hero_id]] = 1
