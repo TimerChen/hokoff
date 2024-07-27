@@ -11,7 +11,7 @@ import numpy as np
 import torch
 import os
 import threading
-from datasets import Datasets
+from large_datasets import LargeDatasets as Datasets
 from torch.utils.tensorboard import SummaryWriter
 import sys
 import torch as th
