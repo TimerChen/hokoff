@@ -203,13 +203,21 @@ class Benchmark(object):
     def run(self):
         self._do_train()
 
-    def save_checkpoint(self, checkpoint_dir: str):
-        for file_name in os.listdir(checkpoint_dir):
+    def remove_old_model(self, checkpoint_dir, max_keep=100):
+        file_list = os.listdir(checkpoint_dir)
+        if len(file_list) <= max_keep:
+            return 
+        file_list = sorted(file_list, key=lambda x: int(x.split('_')[0]), reverse=True)
+        for file_name in file_list[:-max_keep]:
             if '_model' in file_name:
                 model_step = int(file_name.split('_')[0])
-                if abs(model_step - self.local_step) > 10000:
-                    os.remove(os.path.join(checkpoint_dir, file_name, 'model.pth'))
-                    os.rmdir(os.path.join(checkpoint_dir, file_name))
+                # if abs(model_step - self.local_step) > 10000:
+                os.remove(os.path.join(checkpoint_dir, file_name, 'model.pth'))
+                os.rmdir(os.path.join(checkpoint_dir, file_name))
+
+    def save_checkpoint(self, checkpoint_dir: str):
+        self.remove_old_model(checkpoint_dir, max_keep=200)
+        
         os.makedirs(os.path.join(checkpoint_dir, str(self.local_step) + "_model"), exist_ok=True)
         checkpoint_file = os.path.join(checkpoint_dir, str(self.local_step) + "_model", "model.pth")
         if not self.is_chief_rank:
