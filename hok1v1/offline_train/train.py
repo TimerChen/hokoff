@@ -41,27 +41,31 @@ parser.add_argument("--sac_alpha", type=float, default=1.0, help="sac alpha")
 args = parser.parse_args()
 th.set_num_threads(args.thread_num)
 
+def download_dataset(replay_dir, dataset_name):
+    try:
+        if not os.path.exists(replay_dir):
+            os.makedirs(replay_dir)
+        print('Downloading pre-collected {}'.format(dataset_name))
+        os.system(
+            'cd {}; wget  https://kaiwu-assets-1258344700.cos.ap-shanghai.myqcloud.com/paper/hok-offline/1v1/{}.zip'.format(
+                replay_dir, dataset_name
+            )
+        )
+        os.system('cd {}; unzip {}.zip'.format(replay_dir, dataset_name))
+        os.system('cd {}; rm {}.zip'.format(replay_dir, dataset_name))
+    except:
+        print('There is no pre-collected dataset named {}!!!!'.format(dataset_name))
+        exit(0)
+
 if __name__ == "__main__":
     seed = random.randint(0, 100000)
     random.seed(seed)
     np.random.seed(seed)
     th.manual_seed(seed)
-
-    if not os.path.exists(os.path.join(args.replay_dir, args.dataset_name)):
-        try:
-            if not os.path.exists(args.replay_dir):
-                os.makedirs(args.replay_dir)
-            print('Downloading pre-collected {}'.format(args.dataset_name))
-            os.system(
-                'cd {}; wget  https://kaiwu-assets-1258344700.cos.ap-shanghai.myqcloud.com/paper/hok-offline/1v1/{}.zip'.format(
-                    args.replay_dir, args.dataset_name
-                )
-            )
-            os.system('cd {}; unzip {}.zip'.format(args.replay_dir, args.dataset_name))
-            os.system('cd {}; rm {}.zip'.format(args.replay_dir, args.dataset_name))
-        except:
-            print('There is no pre-collected dataset named {}!!!!'.format(args.dataset_name))
-            exit(0)
+    data_path = os.path.join(args.replay_dir, args.dataset_name)
+    if not os.path.exists(data_path):
+        assert False, f"Dataset dir {data_path} does not exist. Please check it."
+        download_dataset(args.replay_dir, args.dataset_name)
     else:
         print('Dataset {} exists'.format(args.dataset_name))
 
@@ -73,7 +77,7 @@ if __name__ == "__main__":
     config_manager.max_steps = args.max_steps
     os.makedirs(config_manager.save_model_dir, exist_ok=True)
     os.makedirs(config_manager.train_dir, exist_ok=True)
-    os.makedirs(config_manager.send_model_dir, exist_ok=True)
+    # os.makedirs(config_manager.send_model_dir, exist_ok=True)
 
     from benchmark import Benchmark
     from networkmodel.pytorch import REGISTRY
@@ -82,3 +86,5 @@ if __name__ == "__main__":
 
     bench = Benchmark(args, network, config_manager, LogManager)
     bench.run()
+    
+    del bench

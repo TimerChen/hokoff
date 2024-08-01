@@ -1,20 +1,17 @@
 # -*- coding: utf-8 -*-
 import time
 
-try:
-    import horovod.torch as hvd
-
-    has_hvd = True
-except:
-    has_hvd = False
 import numpy as np
 import torch
 import os
 import threading
-from large_datasets import LargeDatasets as Datasets
+from large_datasets import ParallelLargeDatasets as Datasets
 from torch.utils.tensorboard import SummaryWriter
 import sys
 import torch as th
+from offline_eval.single_evaluation import evaluate
+
+has_hvd = False
 
 class Benchmark(object):
     def __init__(self, args, network, config_manager, LogManagerClass):
@@ -56,6 +53,7 @@ class Benchmark(object):
         self.local_step = 0
         self.step_train_times = list()
         self.skip_update_times = 0
+        print("tb_writer", os.path.join(args.root_path, args.run_prefix, 'train'))
         self.tb_writer = SummaryWriter(log_dir=os.path.join(args.root_path, args.run_prefix, 'train'))
         # self.optimizer = self._init_optimizer()
         self._init_model()
@@ -80,7 +78,7 @@ class Benchmark(object):
         # only load checkpoint on master node and then broadcast
         if self.config_manager.use_init_model:
             model_checkpoint_path = os.path.join(self.config_manager.init_model_path, "model.pth")
-            self.log_manager.print_info(f"Loading checkpoint from {model_checkpoint_path}")
+            self.log_manager.print_info(f"============Loading checkpoint from {model_checkpoint_path}")
             self.load_checkpoint(model_checkpoint_path)
         max_model_step = 0
         if os.path.exists(self.config_manager.save_model_dir):
@@ -88,9 +86,10 @@ class Benchmark(object):
                 if '_model' in file_name:
                     model_step = int(file_name.split('_')[0])
                     max_model_step = max(model_step, max_model_step)
+
         if max_model_step > 0:
             model_checkpoint_path = os.path.join(self.config_manager.save_model_dir, str(max_model_step) + '_model', "model.pth")
-            self.log_manager.print_info(f"Loading checkpoint from {model_checkpoint_path}")
+            self.log_manager.print_info(f"=============Loading checkpoint from {model_checkpoint_path}")
             self.load_checkpoint(model_checkpoint_path)
             self.local_step = max_model_step
 
@@ -113,7 +112,7 @@ class Benchmark(object):
         waste_time = 0
         train_time = 0
         for _ in range(self.config_manager.warmup_steps, self.config_manager.max_steps):
-            th.cuda.synchronize()
+            #th.cuda.synchronize()
             batch_begin = time.time()
             results = {}
             batch_read_start_time = time.time()
@@ -121,16 +120,17 @@ class Benchmark(object):
             input_datas = self.dataset.next_batch()
             waste_time += time.time() - batch_read_start_time
 
-            th.cuda.synchronize()
+            #th.cuda.synchronize()
             before_train_start_time = time.time()
 
+            #print("input_datas", next(self.net.online_net.parameters()).dtype, input_datas["observation"].dtype)
             total_loss, info_dict = self.net.step(input_datas)
 
             results["total_loss"] = total_loss.item()
 
             _info_list = []
             results["info_list"] = _info_list
-            th.cuda.synchronize()
+            #th.cuda.synchronize()
             train_time += time.time() - before_train_start_time
 
             batch_duration = time.time() - batch_begin
@@ -170,7 +170,7 @@ class Benchmark(object):
                 self.net.update_target_net()
 
             if self.local_step % self.config_manager.display_every == 0:
-                th.cuda.synchronize()
+                #th.cuda.synchronize()
                 print(
                     'Run_Prefix: {}, Training steps: {}, Average training steps per second: {}, Total time: {} hours, Local training time:{} min, ratio:{}, Local waste time:{} min, ratio:{}'.format(
                         self.args.run_prefix,
