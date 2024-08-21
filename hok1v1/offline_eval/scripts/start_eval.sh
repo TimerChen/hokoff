@@ -2,16 +2,17 @@
 
 # export GC_MODE="remote"
 # export GC_MODE="local"
-export INTERFACE_SO_NOT_USE_CURVE=1
+# export INTERFACE_SO_NOT_USE_CURVE=1
 
 ROOT_DIR=$(dirname $(dirname $(dirname $(readlink -f $0))))
 SCRIPT_DIR=$ROOT_DIR/offline_eval
+
+pkill -f entry.py
 
 USE_GPU=true
 if [ $use_gpu ];then
     USE_GPU=$use_gpu
 fi
-
 
 if [ ! -n "$1" ] 
 then

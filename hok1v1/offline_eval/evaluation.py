@@ -28,12 +28,12 @@ import time
 import argparse
 from offline_eval.single_evaluation import evaluate as single_evaluate
 
-parser = argparse.ArgumentParser(description='Offline 3v3 Train')
+parser = argparse.ArgumentParser(description='Offline 1v1 Train')
 
 parser.add_argument("--root_path", type=str, default="/code/offline_logs", help="The root path of the offline information.")
 parser.add_argument("--run_prefix", type=str, default="run_10086", help="The run prefix of the offline exp.")
 parser.add_argument("--levels", type=str, default="0,0", help="The levels of the agents.")
-# parser.add_argument("--train_step",type=int,default=0,help='trainning step')
+parser.add_argument("--train_step",type=int,default=500000,help='trainning step')
 parser.add_argument("--cpu_num", type=int, default=1, help="cpu_num")
 parser.add_argument("--eval_num", type=int, default=1, help="eval_num")
 parser.add_argument("--final_test", type=int, default=0, help="eval_num")
@@ -43,7 +43,7 @@ parser.add_argument("--dataset_name", type=str, default='level-0-0', help="eval_
 args = parser.parse_args()
 
 
-gc_server_addr = "localhost:23432"
+gc_server_addr = "localhost:23333"
 ai_server_ip = '127.0.0.1'
 if __name__ == "__main__":
     

@@ -8,7 +8,7 @@ import re
 
 from absl import app as absl_app
 from absl import flags
-
+from hok.hok1v1.camp import camp_iterator
 from agent import Agent as Agent
 from actor import Actor
 from baselinemodel.model import Model as BaselineModel
@@ -102,7 +102,7 @@ def gc_as_lib(argv):
     ai_server_addr = os.getenv("AI_SERVER_ADDR")
     if gc_server_addr is None or len(gc_server_addr) == 0 or "127.0.0.1" in gc_server_addr:
         # local gc server
-        gc_server_addr = "127.0.0.1:23333"
+        gc_server_addr = "127.0.0.1:23333" #mark:modified to 23432
         ai_server_addr = "127.0.0.1"
         remote_mode = 1
     else:
@@ -160,10 +160,28 @@ def gc_as_lib(argv):
     elif 'multi_hero' in FLAGS.dataset_name:
         env_config_path = '{}/hero_config/multi_hero_config/hero_config_1.json,{}/hero_config/multi_hero_config/hero_config_2.json'.format(cur_dir_name, cur_dir_name)
     else:
+        # ### mark: changed into sampling from a random config pool
+        # config1 = random.randint(0, 299)
+        # config2 = random.randint(0, 299)
+        # env_config_path = '{}/../hero_config/{}.json,{}/../hero_config/{}.json'.format(cur_dir_name, config1, cur_dir_name, config2)
+        
         env_config_path = '{},{}'.format(
             load_models[0][: -len('algorithms/checkpoint')] + 'hero_config.json', load_models[1][: -len('algorithms/checkpoint')] + 'hero_config.json'
         )
-    offline_win_rate = actor.run(eval_mode=eval_mode, eval_number=eval_number, load_models=load_models, env_config_path=env_config_path,hero_levels=FLAGS.levels.split(','))
+    
+    # if any(FLAGS.dataset_path):
+    #     dataset_path = [FLAGS.dataset_path[:-5] + "_camp_index_" + str(i) + ".hdf5" for i in range(AGENT_NUM)]
+    #     for path in dataset_path:
+    #         ensure_path_exist(path[:-8])
+    # else:
+    #     dataset_path = ["" for i in range(AGENT_NUM)]    
+    
+    offline_win_rate = actor.run(eval_mode=eval_mode, 
+                                 eval_number=eval_number, 
+                                 load_models=load_models, 
+                                 env_config_path=env_config_path, 
+                                 hero_levels=FLAGS.levels.split(','),
+                                 dataset_path=FLAGS.dataset_path[:-7])
 
     print('Final Win Rate {}'.format(offline_win_rate))
 

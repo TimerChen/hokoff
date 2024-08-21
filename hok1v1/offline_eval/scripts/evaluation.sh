@@ -20,6 +20,7 @@ OFFLINE_LOG_PATH=$8
 TENSORFLOW_OPPO=$9
 
 DATASET_NAME=${10}
+echo $DATASET_NAME
 
 ROOT_DIR=$(dirname $(dirname $(dirname $(readlink -f $0))))
 
@@ -27,7 +28,7 @@ LOG_DIR=$ROOT_DIR/offline_eval/logs/$RUN_PREFIX/$TRAIN_STEP
 rm -rf $LOG_DIR
 mkdir -p $LOG_DIR
 mkdir -p $LOG_DIR/game_log
-unset USE_ZMQ_CURVE
+# unset USE_ZMQ_CURVE
 let actor_num=$CPU_NUMBER-1
 cd $ROOT_DIR/offline_eval
 while [ "1" == "1" ]

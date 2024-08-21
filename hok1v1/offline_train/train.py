@@ -9,17 +9,17 @@ import torch as th
 import random
 
 parser = argparse.ArgumentParser(description='Offline 1v1 Train')
-parser.add_argument("--root_path", type=str, default="/code/offline_logs", help="The root path of the offline information.")
-parser.add_argument("--replay_dir", type=str, default="/datasets/version5/", help="The root path of the datasets.")
+parser.add_argument("--root_path", type=str, default="offline_logs", help="The root path of the offline information.")
+parser.add_argument("--replay_dir", type=str, default="datasets", help="The root path of the datasets.")
 parser.add_argument("--dataset_name", type=str, default="norm_medium", help="The name of the dataset.")
-parser.add_argument("--run_prefix", type=str, default="run_1v1bc", help="The run prefix of the offline exp.")
+parser.add_argument("--run_prefix", type=str, default="", help="The run prefix of the offline exp.")
 parser.add_argument("--levels", type=str, default="1,1", help="The levels of the agents.")
 parser.add_argument("--gamma", type=float, default=0.99, help="gamma")
 parser.add_argument("--batch_size", type=int, default=128, help="batch_size")
 parser.add_argument("--lr", type=float, default=3e-4, help="lr")
 parser.add_argument("--lstm_time_steps", type=int, default=16, help="lstm_time_steps")
-parser.add_argument("--cpu_num", type=int, default=1, help="cpu_num")
-parser.add_argument("--eval_num", type=int, default=0, help="eval_num")
+parser.add_argument("--cpu_num", type=int, default=20, help="cpu_num")
+parser.add_argument("--eval_num", type=int, default=1000, help="eval_num")
 parser.add_argument("--thread_num", type=int, default=4, help="thread_num")
 parser.add_argument("--max_steps", type=int, default=500000, help="max_steps")
 parser.add_argument("--train_step_per_buffer", type=int, default=1000, help="max_steps")
@@ -41,44 +41,55 @@ parser.add_argument("--sac_alpha", type=float, default=1.0, help="sac alpha")
 args = parser.parse_args()
 th.set_num_threads(args.thread_num)
 
+def download_dataset(replay_dir, dataset_name):
+    try:
+        if not os.path.exists(replay_dir):
+            os.makedirs(replay_dir)
+        print('Downloading pre-collected {}'.format(dataset_name))
+        os.system(
+            'cd {}; wget  https://kaiwu-assets-1258344700.cos.ap-shanghai.myqcloud.com/paper/hok-offline/1v1/{}.zip'.format(
+                replay_dir, dataset_name
+            )
+        )
+        os.system('cd {}; unzip {}.zip'.format(replay_dir, dataset_name))
+        os.system('cd {}; rm {}.zip'.format(replay_dir, dataset_name))
+    except:
+        print('There is no pre-collected dataset named {}!!!!'.format(dataset_name))
+        exit(0)
+
 if __name__ == "__main__":
     seed = random.randint(0, 100000)
     random.seed(seed)
     np.random.seed(seed)
     th.manual_seed(seed)
-
-    if not os.path.exists(os.path.join(args.replay_dir, args.dataset_name)):
-        try:
-            if not os.path.exists(args.replay_dir):
-                os.makedirs(args.replay_dir)
-            print('Downloading pre-collected {}'.format(args.dataset_name))
-            os.system(
-                'cd {}; wget  https://kaiwu-assets-1258344700.cos.ap-shanghai.myqcloud.com/paper/hok-offline/1v1/{}.zip'.format(
-                    args.replay_dir, args.dataset_name
-                )
-            )
-            os.system('cd {}; unzip {}.zip'.format(args.replay_dir, args.dataset_name))
-            os.system('cd {}; rm {}.zip'.format(args.replay_dir, args.dataset_name))
-        except:
-            print('There is no pre-collected dataset named {}!!!!'.format(args.dataset_name))
-            exit(0)
+    
+    data_path = os.path.join(args.replay_dir, args.dataset_name)
+    if not os.path.exists(data_path):
+        assert False, f"Dataset dir {data_path} does not exist. Please check it."
+        # download_dataset(args.replay_dir, args.dataset_name)  #mark:
+        exit()
     else:
         print('Dataset {} exists'.format(args.dataset_name))
 
     config_path = os.path.join(os.path.dirname(__file__), "train_eval_framework", "common.conf")
+    print("config")
+    print(config_path)
 
     config_manager = ConfigControl(config_path)
     config_manager.batch_size = args.batch_size
     config_manager.save_model_dir = os.path.join(args.root_path, args.run_prefix)
     config_manager.max_steps = args.max_steps
+    print(config_manager.max_steps)
     os.makedirs(config_manager.save_model_dir, exist_ok=True)
     os.makedirs(config_manager.train_dir, exist_ok=True)
-    os.makedirs(config_manager.send_model_dir, exist_ok=True)
+    # os.makedirs(config_manager.send_model_dir, exist_ok=True)
 
     from benchmark import Benchmark
     from networkmodel.pytorch import REGISTRY
 
-    network = REGISTRY[args.run_prefix.split('_')[1]](args=args)
+    network = REGISTRY[args.run_prefix.split('_')[-1]](args=args)
 
     bench = Benchmark(args, network, config_manager, LogManager)
     bench.run()
+    
+    del bench

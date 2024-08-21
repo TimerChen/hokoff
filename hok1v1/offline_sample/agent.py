@@ -107,6 +107,7 @@ class Agent:
 
     # reset the agent,agent_type in ["network","common_ai"],if model_path is None,get model from model pool
     def reset(self, agent_type=None, model_path=None):
+        print(model_path)
         # reset lstm input
         self.lstm_hidden = np.zeros([self.lstm_unit_size])
         self.lstm_cell = np.zeros([self.lstm_unit_size])
@@ -117,9 +118,13 @@ class Agent:
 
             self.lstm_step_count = 0
         self.agent_type = "network"
-
+        # if model_path == '/NAS2020/Workspaces/DRLGroup/jbhu/code/sample/hokoff/hok1v1/offline_logs/run5-6_1v1qmix/500000_model':
+        #     for name, param in self.model.public_soldier.named_parameters():
         # for test without model pool
         self._predictor.load_model(model_path)
+        # if model_path == '/NAS2020/Workspaces/DRLGroup/jbhu/code/sample/hokoff/hok1v1/offline_logs/run5-6_1v1qmix/500000_model':
+        #     for name, param in self.model.public_soldier.named_parameters():
+        #         print(name, param.data)
         self.last_model_path = model_path
 
         if self.dataset is None:
@@ -455,6 +460,7 @@ class Agent:
         self.model.eval()
         with torch.no_grad():
             _, pre_logits = self.model(torch_inputs, True, self.lstm_cell, self.lstm_hidden)
+            
 
             logits, self.lstm_cell, self.lstm_hidden = pre_logits[:-2], pre_logits[-2], pre_logits[-1]
 

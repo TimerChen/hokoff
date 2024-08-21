@@ -8,6 +8,7 @@ import time
 import logging
 import json
 
+
 from collections import deque
 import numpy as np
 from config.config import Config
@@ -23,6 +24,7 @@ LOG = CommonLogger.get_logger()
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 OS_ENV = os.environ
 IS_DEV = OS_ENV.get("IS_DEV")
+
 
 
 class Actor:
@@ -119,6 +121,9 @@ class Actor:
         return use_common_ai
 
     def _reload_agents(self, eval=False, load_models=None):
+        print("20240805")
+        print(eval)
+        print(load_models)
         for i, agent in enumerate(self.agents):
             LOG.debug("reset agent {}".format(i))
             if load_models is None or len(load_models) < 2:
@@ -129,7 +134,11 @@ class Actor:
                 else:
                     agent.reset("network", model_path=load_models[i])
 
-    def _run_episode(self, env_config, eval=False, load_models=None, eval_info=""):
+    def _run_episode(self, env_config, eval=False, load_models=None, eval_info="", camp_index_list = []):
+        print("strange")
+        print(load_models)
+        # for name, param in self.agents[1].model.public_soldier.named_parameters():
+        #     print(name, param.data)
         for item in g_log_time.items():
             g_log_time[item[0]] = []
         done = False
@@ -157,7 +166,12 @@ class Actor:
         # use_common_ai=[True,True]
 
         while True:
+            # mark 0709
+            print(self.agents[1].backend)
+            print(use_common_ai)
+            print(eval)
             _, r, d, state_dict = self.env.reset(env_config, use_common_ai=use_common_ai, eval=eval)
+            print(self.agents[1].backend)
             if state_dict[0]['frame_no'] <= 10:
                 break
             else:
@@ -174,6 +188,8 @@ class Actor:
             player_id = self.env.player_list[i]
             camp = self.env.player_camp.get(player_id)
             agent.set_game_info(camp, player_id)
+            
+        camp_index_list.append((self.agents[0].player_id, self.agents[0].hero_camp, self.agents[1].player_id, self.agents[1].hero_camp, self.agents[0].last_model_path, self.agents[1].last_model_path, self.env.player_ids, self.env.camp_list))
 
         # reset mem pool and models
         rewards = [[], []]
@@ -265,6 +281,8 @@ class Actor:
                 LOG.info("Tower {} in camp {}, hp: {}".format(organ.type, organ.camp, organ.hp))
 
         for i, agent in enumerate(self.agents):
+            print("print self.agents")
+            print(len(self.agents))
             if use_common_ai[i]:
                 continue
             for hero_state in req_pbs[i].hero_list:
@@ -298,7 +316,9 @@ class Actor:
         if self.sub_task:
             offline_win = 100 * (1 - (game_info["length"] - self.sub_task_score[0]) / (self.sub_task_score[1] - self.sub_task_score[0]))
 
-        return offline_win
+        ##### changed
+        print(episode_infos[0]["reward"], episode_infos[1]["reward"])
+        return offline_win, episode_infos[0]["reward"], episode_infos[1]["reward"]
 
     def _print_info(self, game_id, game_info, episode_infos, eval, eval_info="", common_ai=None, load_models=None):
         if common_ai is None:
@@ -346,7 +366,7 @@ class Actor:
 
         LOG.info("=" * 50)
 
-    def run(self, eval_mode=True, eval_number=-1, load_models=None, env_config_path=None, hero_levels='1,1'):
+    def run(self, eval_mode=True, eval_number=-1, load_models=None, env_config_path=None, hero_levels='1,1', dataset_path='must_have_dataset_name'):
 
         self._last_print_time = time.time()
         self._episode_num = 0
@@ -376,8 +396,11 @@ class Actor:
             hero_data_list.reverse()
 
         offline_agent_win_list = []
+        reward0 = []
+        reward1 = []
         camp1_index = 0
         camp2_index = 0
+        camp_index_list = []
         while True:
             # heroes' names
             heroes0 = list(hero_data_list[0].keys())  ### two sides' hero names ###
@@ -400,21 +423,40 @@ class Actor:
                     [{"hero_id": second_id, "skill_id": 80115 if int(hero_levels[camp2_index])>6 else 80110, "symbol": [1512, 1512]}],
                 ],
             }
+            
+            print(dir(self.agents[0].model))
+            print(dir(self.agents[1].model))
+            # for name, param in self.agents[0]._predictor.public_soldier.named_parameters():
+            #     print(name, param.data)
+            # for name, param in self.agents[1].model.public_soldier.named_parameters():
+            #     print(name, param.data)
+            
+            ### DEBUG INFO
+            # LOG.info("camp1_index: {}".format(camp1_index))
+            # LOG.info("camp2_index: {}".format(camp1_index))
+            
 
             camp1_index += 1
             if camp1_index % hero_num0 == 0:  ### make all heros from two sides battle ###
                 camp1_index = 0
                 camp2_index = (camp2_index + 1) % hero_num1
 
-            print('config_dicts:', config_dicts)
+            print('config_dicts: {}'.format(config_dicts))
             try:
                 # provide a init eval value at the first episode
-                print("cur models", cur_models)
+                print("cur models {}".format(cur_models))
                 if swap:
                     eval_info = "{} vs {}, {}/{}".format(agent_1, agent_0, cur_eval_cnt, eval_number)
                 else:
                     eval_info = "{} vs {}, {}/{}".format(agent_0, agent_1, cur_eval_cnt, eval_number)
-                offline_agent_win_list.append(self._run_episode(config_dicts, True, load_models=cur_models, eval_info=eval_info))
+                    
+                    
+                dict = self._run_episode(config_dicts, True, load_models=cur_models, eval_info=eval_info, camp_index_list=camp_index_list)
+                offline_agent_win_list.append(dict[0])
+                reward0.append(dict[1])
+                reward1.append(dict[2])
+                
+                ######
                 # swap camp every-episode swap #
                 cur_models.reverse()
                 self.agents.reverse()
@@ -425,8 +467,16 @@ class Actor:
 
                 self._episode_num += 1
             except Exception as e:  # pylint: disable=broad-except
-                LOG.error(e)
+                LOG.error("{}".format(e))
                 traceback.print_exc()
+
+            ### DEBUG INFO
+            # LOG.info("camp1_index: {}".format(camp1_index))
+            # LOG.info("camp2_index: {}".format(camp2_index))
+            
+            
+            # for name, param in self.agents[1].model.public_soldier.named_parameters():
+            #     print(name, param.data)
 
             if eval_mode:
                 # update eval agents and eval cnt
@@ -453,15 +503,44 @@ class Actor:
                     os.system('find /logs/cpu_log/game_log -mmin +60 -name "*" -exec rm -rfv {} \;')
                     last_clean = now
 
+            # DEBUG INFO
+            # LOG.info("self.env.player_list[0]: {}".format(self.env.player_list[0]))
+            # LOG.info("self.env.player_list[1]: {}".format(self.env.player_list[1]))
+            # LOG.info("offline_agent_win_list: {}".format(offline_agent_win_list))
+            # LOG.info("heroes0: {}".format(heroes0))
+            # LOG.info("heroes1: {}".format(heroes1))
+            # LOG.info("hero_num0: {}".format(hero_num0))
+            # LOG.info("hero_num1: {}".format(hero_num1))
+            # LOG.info("hero_name1: {}".format(hero_name1))
+            # LOG.info("hero_name2: {}".format(hero_name2))
+            # LOG.info("hero_data_list: {}".format(hero_data_list))
+            # LOG.info("config_dict: {}".format(config_dicts))
+
             if 0 < self._max_episode <= self._episode_num:
                 break
 
         win_rate = np.mean(offline_agent_win_list)
+        
         LOG.info("====================win rate====================")
         LOG.info(f"The winning rate of the offline_agent is {win_rate}")
+        print(win_rate)
 
         for agent in self.agents:
             agent.close()
             print('close ip!')
+            
+            
+        # ### mark：write camp index into hdf5 file
+        # import pickle
+        
+        # file_path_with_id = dataset_path + '/camp_index_list-actor-{}.hdf5'.format(self.m_config_id);
+        # # LOG.info(camp_index_list)
+        
+        # # camp_index_list = np.array(camp_index_list, dtype=[('player1_id', int), ('player1_camp', int), ('player2_id', int), ('player2_camp', int), ('player_ids', object), ('camp_list', object), ('config_dicts', object)])
 
-        return win_rate
+        # with open(file_path_with_id, 'wb') as f:
+        #     pickle.dump(camp_index_list, f)
+        # ###
+
+
+        return win_rate, np.mean(reward0), np.mean(reward1)

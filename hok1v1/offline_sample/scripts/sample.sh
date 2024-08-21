@@ -63,7 +63,7 @@ do
         done
   
         echo "[`date`] restart actor_id:$actor_id"
-        nohup python entry.py --actor_id=$actor_id \
+        python entry.py --actor_id=$actor_id \
                                 --i=$i \
                                 --thread_num=1 \
                                 --dataset_path="${DATASET_PATH}$i.hdf5" \

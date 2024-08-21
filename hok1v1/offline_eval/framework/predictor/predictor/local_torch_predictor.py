@@ -12,6 +12,16 @@ class LocalTorchPredictor(object):
     def load_model(self, model_path):
         model_filename = os.path.join(model_path, "model.pth")
         checkpoint = torch.load(model_filename, map_location=self.device)
+        print("wabawaba")
+        print(checkpoint.keys())
+        for key in checkpoint["network_state_dict"]:
+            if torch.isnan(checkpoint["network_state_dict"][key]).any():
+                print("NaN values found in model parameters for key:", key)
+
+        # 逐层检查模型权重
+        for name, param in self.net.named_parameters():
+            if torch.isnan(param).any():
+                print("NaN values found in layer:", name)
         self.net.load_state_dict(checkpoint["network_state_dict"])
 
     def inference(self, data_list):

@@ -1,5 +1,5 @@
 if [ ! $GAMECORE_SERVER_ADDR ]; then
-  curl -k http://127.0.0.1:23432/v1/stopGame -d '{"Token": "127D0D0D1","CustomConfig": "{\"runtime_id\":-1}"}'
+  curl -k http://127.0.0.1:23333/v1/stopGame -d '{"Token": "127D0D0D1","CustomConfig": "{\"runtime_id\":-1}"}'
 else
   TOKEN=$(echo ${AI_SERVER_ADDR} | awk '{ gsub(/\./,"D"); print $0 }')
   echo "Kill all running processes of token:${TOKEN}."

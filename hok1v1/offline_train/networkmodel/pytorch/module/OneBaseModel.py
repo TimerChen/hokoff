@@ -89,6 +89,10 @@ class OneBaseModel(nn.Module):
         self.net_hero_frd = nn.Sequential(nn.Linear(256, 128))
 
         self.public_soldier = nn.Sequential(nn.Linear(DimConfig.DIM_OF_SOLDIER_1_10[0], 64), nn.ReLU(), nn.Linear(64, 64), nn.ReLU())
+        # print("public")
+        # print(self.public_soldier)
+        # for name, param in self.public_soldier.named_parameters():
+        #     print(name, param.data)
         self.net_soldier1 = nn.Sequential(nn.Linear(64, 32))
         self.net_soldier2 = nn.Sequential(nn.Linear(64, 32))
 
@@ -178,6 +182,11 @@ class OneBaseModel(nn.Module):
             hero_main
         """
         for index in range(len(hero_main)):
+            # print("Input dtype:", hero_main[index].dtype)
+            # for layer in self.public_hero_main:
+            #     if hasattr(layer, 'weight'):
+            #         print(f"Layer: {layer}, Weight dtype: {layer.weight.dtype}")
+            
             fc3_hero_result = self.net_hero_main(self.public_hero_main(hero_main[index]))
         hero_main_concat_result = fc3_hero_result
 
@@ -211,6 +220,41 @@ class OneBaseModel(nn.Module):
         soldier_1_result_list = []
         for index in range(len(soldier_1_10)):
             fc3_soldier_result = self.net_soldier1(self.public_soldier(soldier_1_10[index]))
+        #     for name, param in self.public_soldier.named_parameters():
+        #         print(name, param.data)
+            # x = soldier_1_10[index]
+            # x = self.layer1(x)
+            # print("Output after linear layer 1:", x)
+                    
+            # x = self.relu1(x)
+            # print("Output after ReLU 1:", x)
+                    
+            # x = self.layer2(x)
+            # print("Output after linear layer 2:", x)
+                    
+            # x = self.relu2(x)
+            # print("Final output after ReLU 2:", x)
+
+
+            # # 创建模型实例
+
+            # # 打印每一层的参数
+            # print("Layer 1 parameters:")
+            # for name, param in self.public_soldier.layer1.named_parameters():
+            #     print(name, param.data)
+
+            # print("Layer 2 parameters:")
+            # for name, param in self.public_soldier.layer2.named_parameters():
+            #     print(name, param.data)
+            
+            
+            # print("soldier_1_10[index]")
+            # print(soldier_1_10[index])
+            # print("soldier_1_10[index]")
+            # print(self.public_soldier(soldier_1_10[index]))
+            # print("fc3_soldier_result")
+            # print(fc3_soldier_result)
+            # print("fc3_soldier_result")
             soldier_1_result_list.append(fc3_soldier_result)
         soldier_1_concat_result = torch.cat(soldier_1_result_list, dim=1).reshape([self.batch_size, len(soldier_1_10), -1]).max(dim=1).values
 
@@ -261,6 +305,9 @@ class OneBaseModel(nn.Module):
             ],
             dim=1,
         )
+        # print("concat")
+        # print(concat_result)
+        # print("concat")
 
         """
             public fc
@@ -298,8 +345,12 @@ class OneBaseModel(nn.Module):
         result_list.append(fc3_label_result)
 
         if only_inference:
+            # print("cell")
+            # print(cell)
             result_list.append(cell)
             result_list.append(hidden)
 
         # return input, result_list
+        # print("in model")
+        # print(result_list)
         return fc_pulic_result, result_list

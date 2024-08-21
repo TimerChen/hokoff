@@ -1,20 +1,18 @@
 # -*- coding: utf-8 -*-
 import time
 
-try:
-    import horovod.torch as hvd
-
-    has_hvd = True
-except:
-    has_hvd = False
 import numpy as np
 import torch
 import os
 import threading
-from datasets import Datasets
+from datasets import Datasets as Datasets
+# from large_datasets import ParallelLargeDatasets as Datasets
 from torch.utils.tensorboard import SummaryWriter
 import sys
 import torch as th
+from offline_eval.single_evaluation import evaluate
+
+has_hvd = False
 
 class Benchmark(object):
     def __init__(self, args, network, config_manager, LogManagerClass):
@@ -23,6 +21,8 @@ class Benchmark(object):
         self.log_manager = LogManagerClass(backend="pytorch")
         self.log_manager.print_info("init starting, backend=pytorch")
         self.config_manager = config_manager
+        print("?")
+        print(config_manager.max_steps)
         # self.model_manager = ModelManagerClass(self.config_manager.push_to_modelpool)
 
         self.rank = hvd.rank() if has_hvd else 0
@@ -56,16 +56,19 @@ class Benchmark(object):
         self.local_step = 0
         self.step_train_times = list()
         self.skip_update_times = 0
+        print("tb_writer", os.path.join(args.root_path, args.run_prefix, 'train'))
         self.tb_writer = SummaryWriter(log_dir=os.path.join(args.root_path, args.run_prefix, 'train'))
         # self.optimizer = self._init_optimizer()
         self._init_model()
         self.log_manager.print_info("init finished")
         if self.args.eval_num > 0:
-            t1 = threading.Thread(
-                target=evaluate, args=[self.args.root_path, self.args.run_prefix, self.args.levels, self.args.eval_num, self.args.cpu_num]
-            )
-            t1.setDaemon(True)
-            t1.start()
+            for step in {10000, 20000}:
+                t = threading.Thread(
+                    # single_evaluate(root_path, run_prefix, levels, eval_num, cpu_num, args.final_test, args.tensorflow_oppo, max_steps, args.dataset_name)
+                    target=evaluate, args=[self.args.root_path, self.args.run_prefix, self.args.levels, self.args.eval_num, self.args.cpu_num, False, False, step, self.args.dataset_name]
+                )
+                t.setDaemon(True)
+                t.start()
 
     def _init_optimizer(self):
         initial_lr = self.net.learning_rate
@@ -80,7 +83,7 @@ class Benchmark(object):
         # only load checkpoint on master node and then broadcast
         if self.config_manager.use_init_model:
             model_checkpoint_path = os.path.join(self.config_manager.init_model_path, "model.pth")
-            self.log_manager.print_info(f"Loading checkpoint from {model_checkpoint_path}")
+            self.log_manager.print_info(f"============Loading checkpoint from {model_checkpoint_path}")
             self.load_checkpoint(model_checkpoint_path)
         max_model_step = 0
         if os.path.exists(self.config_manager.save_model_dir):
@@ -88,9 +91,10 @@ class Benchmark(object):
                 if '_model' in file_name:
                     model_step = int(file_name.split('_')[0])
                     max_model_step = max(model_step, max_model_step)
+
         if max_model_step > 0:
             model_checkpoint_path = os.path.join(self.config_manager.save_model_dir, str(max_model_step) + '_model', "model.pth")
-            self.log_manager.print_info(f"Loading checkpoint from {model_checkpoint_path}")
+            self.log_manager.print_info(f"=============Loading checkpoint from {model_checkpoint_path}")
             self.load_checkpoint(model_checkpoint_path)
             self.local_step = max_model_step
 
@@ -112,28 +116,32 @@ class Benchmark(object):
         local_start_time = time.time()
         waste_time = 0
         train_time = 0
+        print("DO TRAIN")
+        print(self.config_manager.warmup_steps)
         for _ in range(self.config_manager.warmup_steps, self.config_manager.max_steps):
-            th.cuda.synchronize()
+            #th.cuda.synchronize()
             batch_begin = time.time()
             results = {}
             batch_read_start_time = time.time()
-
+            print("batch")
             input_datas = self.dataset.next_batch()
             waste_time += time.time() - batch_read_start_time
 
-            th.cuda.synchronize()
+            #th.cuda.synchronize()
             before_train_start_time = time.time()
-
+            print("there os")
+            #print("input_datas", next(self.net.online_net.parameters()).dtype, input_datas["observation"].dtype)
             total_loss, info_dict = self.net.step(input_datas)
-
+            print("end")
             results["total_loss"] = total_loss.item()
 
             _info_list = []
             results["info_list"] = _info_list
-            th.cuda.synchronize()
+            #th.cuda.synchronize()
             train_time += time.time() - before_train_start_time
 
             batch_duration = time.time() - batch_begin
+            print("debug1")
             self.local_step += 1
             if self.local_step % self.config_manager.save_model_steps != 0:
                 self.step_train_times.append(batch_duration)
@@ -161,6 +169,7 @@ class Benchmark(object):
                 self.tb_writer.add_scalar('config/gamma', self.args.gamma, self.local_step)
                 self.tb_writer.add_scalar('config/train_step_per_buffer', self.args.train_step_per_buffer, self.local_step)
                 ##########################
+            print("debug2")
 
             if self.local_step % self.config_manager.save_model_steps == 0 and self.is_chief_rank:
                 self.save_checkpoint(self.config_manager.save_model_dir)
@@ -168,9 +177,11 @@ class Benchmark(object):
                 # self.log_manager.print_info(msg)
             if self.local_step % self.args.target_update_freq == 0 and self.is_chief_rank:
                 self.net.update_target_net()
+                
+            print("opopopo")
 
             if self.local_step % self.config_manager.display_every == 0:
-                th.cuda.synchronize()
+                #th.cuda.synchronize()
                 print(
                     'Run_Prefix: {}, Training steps: {}, Average training steps per second: {}, Total time: {} hours, Local training time:{} min, ratio:{}, Local waste time:{} min, ratio:{}'.format(
                         self.args.run_prefix,
@@ -203,13 +214,21 @@ class Benchmark(object):
     def run(self):
         self._do_train()
 
-    def save_checkpoint(self, checkpoint_dir: str):
-        for file_name in os.listdir(checkpoint_dir):
+    def remove_old_model(self, checkpoint_dir, max_keep=100):
+        file_list = os.listdir(checkpoint_dir)
+        if len(file_list) <= max_keep:
+            return 
+        file_list = sorted(file_list, key=lambda x: int(x.split('_')[0]), reverse=True)
+        for file_name in file_list[:-max_keep]:
             if '_model' in file_name:
                 model_step = int(file_name.split('_')[0])
-                if abs(model_step - self.local_step) > 10000:
-                    os.remove(os.path.join(checkpoint_dir, file_name, 'model.pth'))
-                    os.rmdir(os.path.join(checkpoint_dir, file_name))
+                # if abs(model_step - self.local_step) > 10000:
+                os.remove(os.path.join(checkpoint_dir, file_name, 'model.pth'))
+                os.rmdir(os.path.join(checkpoint_dir, file_name))
+
+    def save_checkpoint(self, checkpoint_dir: str):
+        self.remove_old_model(checkpoint_dir, max_keep=200)
+        
         os.makedirs(os.path.join(checkpoint_dir, str(self.local_step) + "_model"), exist_ok=True)
         checkpoint_file = os.path.join(checkpoint_dir, str(self.local_step) + "_model", "model.pth")
         if not self.is_chief_rank:

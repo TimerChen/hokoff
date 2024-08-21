@@ -3,6 +3,7 @@
 # export GC_MODE="local"
 # export INTERFACE_SO_NOT_USE_CURVE=1
 
+pkill -f entry.py
 SCRIPT_DIR=$(dirname $(dirname $(readlink -f $0)))
 
 if [ ! -n "$1" ] ### if exists one parameter ###
@@ -15,21 +16,21 @@ echo "LEVLES:$LEVEL_STR"
 
 if [ ! -n "$2" ] 
 then
-    EVAL_NUMBER=1
+    EVAL_NUMBER=100
 else
     EVAL_NUMBER=$2
 fi
 echo "EVAL_NUMBER:$EVAL_NUMBER"
 if [ ! -n "$3" ] 
 then
-    CPU_NUMBER=1
+    CPU_NUMBER=50
 else
     CPU_NUMBER=$3
 fi
 echo "CPU_NUMBER:$CPU_NUMBER"
 if [ ! -n "$4" ] 
 then
-    DATASET_VERSION_NAME='tmpversion1'
+    DATASET_VERSION_NAME=$(date +'%m%d%H%M')
 else
     DATASET_VERSION_NAME=$4
 fi
