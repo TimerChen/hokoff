@@ -8,8 +8,8 @@ import time
 from train_eval_config.OneConfig import ModelConfig as Config
 import os
 import glob
-import multiprocessing as mp
-from multiprocessing import Process, Queue, shared_memory, Event
+import torch.multiprocessing as mp
+from torch.multiprocessing import Process, Queue, shared_memory, Event
 import queue
 
 
@@ -54,7 +54,7 @@ class ParallelLargeDatasets(object):
                                             "cpu", train_step_per_buffer, 
                                             num_workers, max_step, dname,
                                             data_queue,
-                                            )) for dname in dataset_name]
+                                            ), daemon=True) for dname in dataset_name]
         [p.start() for p in self.dataset_process]
     
     def __del__(self):
