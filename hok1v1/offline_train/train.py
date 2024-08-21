@@ -1,5 +1,6 @@
 import os
-
+import sys
+sys.path.append(".")
 os.environ['dataop'] = os.path.join(os.path.dirname(__file__), 'lib')
 from train_eval_framework.config_control import ConfigControl
 from train_eval_framework.log_manager import LogManager
@@ -82,9 +83,26 @@ if __name__ == "__main__":
     from benchmark import Benchmark
     from networkmodel.pytorch import REGISTRY
 
+    # NOTE: **MUST** create parallel dataset before creating the network,
+    # because the dataset will fork the model, and cause the subprocess to be freezed.
+    # Ref: https://github.com/pytorch/pytorch/issues/35472
+    
+    from large_datasets import ParallelLargeDatasets
+    device = th.device("cuda" if th.cuda.is_available() else "cpu")
+    dataset = ParallelLargeDatasets(
+                args.replay_dir,
+                config_manager.batch_size,
+                args.lstm_time_steps,
+                device=device,
+                train_step_per_buffer=args.train_step_per_buffer,
+                num_workers=args.buffer_num_workers,
+                max_step=config_manager.max_steps,
+                dataset_name=args.dataset_name
+            )
+    
     network = REGISTRY[args.run_prefix.split('_')[1]](args=args)
 
-    bench = Benchmark(args, network, config_manager, LogManager)
+    bench = Benchmark(args, network, config_manager, LogManager, dataset=dataset)
     bench.run()
     
     del bench

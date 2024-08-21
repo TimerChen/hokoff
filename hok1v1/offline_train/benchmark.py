@@ -5,7 +5,8 @@ import numpy as np
 import torch
 import os
 import threading
-from large_datasets import ParallelLargeDatasets as Datasets
+
+from datasets import Datasets
 from torch.utils.tensorboard import SummaryWriter
 import sys
 import torch as th
@@ -14,7 +15,7 @@ from offline_eval.single_evaluation import evaluate
 has_hvd = False
 
 class Benchmark(object):
-    def __init__(self, args, network, config_manager, LogManagerClass):
+    def __init__(self, args, network, config_manager, LogManagerClass, dataset=None):
         self.args = args
 
         self.log_manager = LogManagerClass(backend="pytorch")
@@ -39,16 +40,19 @@ class Benchmark(object):
 
         self.net = network
         self.net.to(self.device)
-        self.dataset = Datasets(
-            args.replay_dir,
-            self.config_manager.batch_size,
-            self.net.lstm_time_steps,
-            device=self.device,
-            train_step_per_buffer=args.train_step_per_buffer,
-            num_workers=args.buffer_num_workers,
-            max_step=self.config_manager.max_steps,
-            dataset_name=args.dataset_name
-        )
+        if dataset is None:
+            self.dataset = Datasets(
+                args.replay_dir,
+                self.config_manager.batch_size,
+                self.net.lstm_time_steps,
+                device=self.device,
+                train_step_per_buffer=args.train_step_per_buffer,
+                num_workers=args.buffer_num_workers,
+                max_step=self.config_manager.max_steps,
+                dataset_name=args.dataset_name
+            )
+        else:
+            self.dataset = dataset
 
         self.local_step = 0
         self.step_train_times = list()
