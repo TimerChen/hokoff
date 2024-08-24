@@ -35,7 +35,7 @@ while [ "1" == "1" ]
 do
 
   for i in $(seq 0 $actor_num); do
-        ((actor_id=$i + $EXP_ID * 100))
+        ((actor_id=$i + $EXP_ID * 100 + $TRAIN_STEP * 100000))
         while [ "1" == "1" ]
             do
             actor_cnt=`ps -elf | grep "python entry.py --actor_id=$actor_id " | grep -v grep | wc -l`
@@ -44,12 +44,12 @@ do
                 actor_log=$LOG_DIR/actor_$i.log
                 # rm $actor_log
                 break
-            else actor_id=$(($actor_id+10000))
+            else actor_id=$(($actor_id+10000 + $TRAIN_STEP * 100000))
             fi
         done
   
         echo "[`date`] restart actor_id:$actor_id"
-        nohup python entry.py --actor_id=$actor_id \
+        python entry.py --actor_id=$actor_id \
                             --i=$i \
                               --thread_num=1 \
                               --agent_models=${MODEL_PATH} \

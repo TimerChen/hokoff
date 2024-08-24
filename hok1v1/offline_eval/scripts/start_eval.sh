@@ -7,7 +7,6 @@
 ROOT_DIR=$(dirname $(dirname $(dirname $(readlink -f $0))))
 SCRIPT_DIR=$ROOT_DIR/offline_eval
 
-pkill -f entry.py
 
 USE_GPU=true
 if [ $use_gpu ];then
@@ -87,8 +86,9 @@ if [ $max_test_time ];then
     Max_test_time=$max_test_time
 fi
 
-MODEL_PATH="$OFFLINE_LOG_PATH/${RUN_PREFIX}/${TRAIN_STEP}_model"
+MODEL_PATH="/NAS2020/Workspaces/DRLGroup/jbhu/code/sample/hokoff/hok1v1/$OFFLINE_LOG_PATH/${RUN_PREFIX}/${TRAIN_STEP}_model"
 
+echo $MODEL_PATH
 LOG_DIR=$ROOT_DIR/offline_eval/logs/$RUN_PREFIX/$TRAIN_STEP
 rm -rf $LOG_DIR
 mkdir -p $LOG_DIR

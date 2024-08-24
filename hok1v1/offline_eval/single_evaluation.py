@@ -42,7 +42,6 @@ def count_result(root_path, run, train_step, final_test, cpu_num):
                 try:
                     model_name = re.findall('model_iter: \d+', line)[0].split(' ')[1]  ### which iteration ###
                     wr = float(re.findall('win_rate: \d+\.?\d*', line)[0][10:])
-                    print("opopopop")
                     print(wr)
                     reward0 = float(re.findall('reward0: -?\d+\.?\d*', line)[0][9:])
                     reward1 = float(re.findall('reward1: -?\d+\.?\d*', line)[0][9:])
@@ -181,6 +180,7 @@ def evaluate(root_path, runs, levels=5, eval_num=1, cpu_num=20, final_test=False
                 # --dataset_name=level-5-5
             )
             start_time = time.time()
+            print("debug1")
             while True:  ### wait for all evaluations are done ###
                 if not os.path.exists(os.path.join(model_pool_path, 'eval', f'{max_steps}_eval.log')):
                     continue
@@ -194,6 +194,8 @@ def evaluate(root_path, runs, levels=5, eval_num=1, cpu_num=20, final_test=False
                     break
                 time.sleep(0.1)
             _, win_rate_list = count_result(root_path, runs[run_id], train_step_list[run_id], final_test, cpu_num)
+            print(win_rate_list)
+            print("_________")
             # with open(os.path.join(model_pool_path, 'eval', 'win_rate_list.log'), 'a') as f:
             #     f.write(f"{max_steps}\n") 
             #     f.write(f"{0 if len(win_rate_list) == 0 else np.mean(win_rate_list)}\n") 

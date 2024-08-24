@@ -82,6 +82,11 @@ Please refer to 'start_sample.sh' and 'sample.sh' for details.
 
 ## **Train**
 
+    cd hok1v1
+    python offline_train/train.py --root_path=offline_logs --replay_dir=datasets --dataset_name=collection_5vs5 --run_prefix=run_1v1qmix_5v5_10x \ 
+    --batch_size=512
+
+
     cd hok3v3
     python offline_train/train.py --root_path=offline_logs --replay_dir=datasets --dataset_name=norm_medium --run_prefix=run_indbc_0
 

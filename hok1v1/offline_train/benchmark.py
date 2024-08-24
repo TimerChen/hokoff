@@ -5,8 +5,8 @@ import numpy as np
 import torch
 import os
 import threading
-from datasets import Datasets as Datasets
-# from large_datasets import ParallelLargeDatasets as Datasets
+
+from datasets import Datasets
 from torch.utils.tensorboard import SummaryWriter
 import sys
 import torch as th
@@ -15,9 +15,11 @@ from offline_eval.single_evaluation import evaluate
 has_hvd = False
 
 class Benchmark(object):
-    def __init__(self, args, network, config_manager, LogManagerClass):
+    def __init__(self, args, network, config_manager, LogManagerClass, dataset=None):
         self.args = args
-
+        print(sys.path)
+        print("python")
+        print(os.environ.get('PYTHONPATH'))
         self.log_manager = LogManagerClass(backend="pytorch")
         self.log_manager.print_info("init starting, backend=pytorch")
         self.config_manager = config_manager
@@ -42,16 +44,19 @@ class Benchmark(object):
 
         self.net = network
         self.net.to(self.device)
-        self.dataset = Datasets(
-            args.replay_dir,
-            self.config_manager.batch_size,
-            self.net.lstm_time_steps,
-            device=self.device,
-            train_step_per_buffer=args.train_step_per_buffer,
-            num_workers=args.buffer_num_workers,
-            max_step=self.config_manager.max_steps,
-            dataset_name=args.dataset_name
-        )
+        if dataset is None:
+            self.dataset = Datasets(
+                args.replay_dir,
+                self.config_manager.batch_size,
+                self.net.lstm_time_steps,
+                device=self.device,
+                train_step_per_buffer=args.train_step_per_buffer,
+                num_workers=args.buffer_num_workers,
+                max_step=self.config_manager.max_steps,
+                dataset_name=args.dataset_name
+            )
+        else:
+            self.dataset = dataset
 
         self.local_step = 0
         self.step_train_times = list()
@@ -61,14 +66,8 @@ class Benchmark(object):
         # self.optimizer = self._init_optimizer()
         self._init_model()
         self.log_manager.print_info("init finished")
-        if self.args.eval_num > 0:
-            for step in {10000, 20000}:
-                t = threading.Thread(
-                    # single_evaluate(root_path, run_prefix, levels, eval_num, cpu_num, args.final_test, args.tensorflow_oppo, max_steps, args.dataset_name)
-                    target=evaluate, args=[self.args.root_path, self.args.run_prefix, self.args.levels, self.args.eval_num, self.args.cpu_num, False, False, step, self.args.dataset_name]
-                )
-                t.setDaemon(True)
-                t.start()
+        # eval_steps = range(self.config_manager.save_model_steps, 500000, self.config_manager.save_model_steps)
+        # print(eval_steps)
 
     def _init_optimizer(self):
         initial_lr = self.net.learning_rate
@@ -116,23 +115,18 @@ class Benchmark(object):
         local_start_time = time.time()
         waste_time = 0
         train_time = 0
-        print("DO TRAIN")
-        print(self.config_manager.warmup_steps)
         for _ in range(self.config_manager.warmup_steps, self.config_manager.max_steps):
             #th.cuda.synchronize()
             batch_begin = time.time()
             results = {}
             batch_read_start_time = time.time()
-            print("batch")
             input_datas = self.dataset.next_batch()
             waste_time += time.time() - batch_read_start_time
 
             #th.cuda.synchronize()
             before_train_start_time = time.time()
-            print("there os")
             #print("input_datas", next(self.net.online_net.parameters()).dtype, input_datas["observation"].dtype)
             total_loss, info_dict = self.net.step(input_datas)
-            print("end")
             results["total_loss"] = total_loss.item()
 
             _info_list = []
@@ -141,7 +135,6 @@ class Benchmark(object):
             train_time += time.time() - before_train_start_time
 
             batch_duration = time.time() - batch_begin
-            print("debug1")
             self.local_step += 1
             if self.local_step % self.config_manager.save_model_steps != 0:
                 self.step_train_times.append(batch_duration)
@@ -169,7 +162,6 @@ class Benchmark(object):
                 self.tb_writer.add_scalar('config/gamma', self.args.gamma, self.local_step)
                 self.tb_writer.add_scalar('config/train_step_per_buffer', self.args.train_step_per_buffer, self.local_step)
                 ##########################
-            print("debug2")
 
             if self.local_step % self.config_manager.save_model_steps == 0 and self.is_chief_rank:
                 self.save_checkpoint(self.config_manager.save_model_dir)
@@ -177,8 +169,6 @@ class Benchmark(object):
                 # self.log_manager.print_info(msg)
             if self.local_step % self.args.target_update_freq == 0 and self.is_chief_rank:
                 self.net.update_target_net()
-                
-            print("opopopo")
 
             if self.local_step % self.config_manager.display_every == 0:
                 #th.cuda.synchronize()
@@ -227,14 +217,28 @@ class Benchmark(object):
                 os.rmdir(os.path.join(checkpoint_dir, file_name))
 
     def save_checkpoint(self, checkpoint_dir: str):
-        self.remove_old_model(checkpoint_dir, max_keep=200)
+        # self.remove_old_model(checkpoint_dir, max_keep=1000)
+        print("warm")
+        print(self.config_manager.warmup_steps)
+        print("warm")
         
         os.makedirs(os.path.join(checkpoint_dir, str(self.local_step) + "_model"), exist_ok=True)
-        checkpoint_file = os.path.join(checkpoint_dir, str(self.local_step) + "_model", "model.pth")
+        checkpoint_file = os.path.join("/home/jbhu/nas/code/sample/hokoff/hok1v1/" + checkpoint_dir, str(self.local_step) + "_model", "model.pth")
         if not self.is_chief_rank:
             return  # only save checkpoint on master node
         save_dict = self.net.save_dict()
         torch.save(save_dict, checkpoint_file)
+        if os.path.exists(checkpoint_file):
+            print("model exists")
+        else:
+            print("model does not exist")
+        if self.args.eval_num > 0 and self.local_step % self.config_manager.save_model_steps == 0 and self.local_step > 0:
+            t = threading.Thread(
+                    # single_evaluate(root_path, run_prefix, levels, eval_num, cpu_num, args.final_test, args.tensorflow_oppo, max_steps, args.dataset_name)
+                    target=evaluate, args=[self.args.root_path, self.args.run_prefix, self.args.levels, self.args.eval_num, self.args.cpu_num, False, False, self.local_step, self.args.dataset_name]
+            )
+            t.setDaemon(True)
+            t.start()
 
     def load_checkpoint(self, checkpoint_file: str):
         if not self.is_chief_rank:

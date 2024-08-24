@@ -1,5 +1,6 @@
 import os
-
+import sys
+sys.path.append(".")
 os.environ['dataop'] = os.path.join(os.path.dirname(__file__), 'lib')
 from train_eval_framework.config_control import ConfigControl
 from train_eval_framework.log_manager import LogManager
@@ -19,7 +20,7 @@ parser.add_argument("--batch_size", type=int, default=128, help="batch_size")
 parser.add_argument("--lr", type=float, default=3e-4, help="lr")
 parser.add_argument("--lstm_time_steps", type=int, default=16, help="lstm_time_steps")
 parser.add_argument("--cpu_num", type=int, default=20, help="cpu_num")
-parser.add_argument("--eval_num", type=int, default=1000, help="eval_num")
+parser.add_argument("--eval_num", type=int, default=1, help="eval_num")
 parser.add_argument("--thread_num", type=int, default=4, help="thread_num")
 parser.add_argument("--max_steps", type=int, default=500000, help="max_steps")
 parser.add_argument("--train_step_per_buffer", type=int, default=1000, help="max_steps")
@@ -62,12 +63,10 @@ if __name__ == "__main__":
     random.seed(seed)
     np.random.seed(seed)
     th.manual_seed(seed)
-    
     data_path = os.path.join(args.replay_dir, args.dataset_name)
     if not os.path.exists(data_path):
         assert False, f"Dataset dir {data_path} does not exist. Please check it."
-        # download_dataset(args.replay_dir, args.dataset_name)  #mark:
-        exit()
+        download_dataset(args.replay_dir, args.dataset_name)
     else:
         print('Dataset {} exists'.format(args.dataset_name))
 
@@ -87,9 +86,26 @@ if __name__ == "__main__":
     from benchmark import Benchmark
     from networkmodel.pytorch import REGISTRY
 
-    network = REGISTRY[args.run_prefix.split('_')[-1]](args=args)
+    # NOTE: **MUST** create parallel dataset before creating the network,
+    # because the dataset will fork the model, and cause the subprocess to be freezed.
+    # Ref: https://github.com/pytorch/pytorch/issues/35472
+    
+    from large_datasets import ParallelLargeDatasets
+    device = th.device("cuda" if th.cuda.is_available() else "cpu")
+    dataset = ParallelLargeDatasets(
+                args.replay_dir,
+                config_manager.batch_size,
+                args.lstm_time_steps,
+                device=device,
+                train_step_per_buffer=args.train_step_per_buffer,
+                num_workers=args.buffer_num_workers,
+                max_step=config_manager.max_steps,
+                dataset_name=args.dataset_name
+            )
+    
+    network = REGISTRY[args.run_prefix.split('_')[1]](args=args)
 
-    bench = Benchmark(args, network, config_manager, LogManager)
+    bench = Benchmark(args, network, config_manager, LogManager, dataset=dataset)
     bench.run()
     
     del bench
