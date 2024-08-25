@@ -111,13 +111,14 @@ class Agent:
         # reset lstm input
         self.lstm_hidden = np.zeros([self.lstm_unit_size])
         self.lstm_cell = np.zeros([self.lstm_unit_size])
-
+        print("a")
         if self.backend == 'pytorch':
             self.lstm_hidden = torch.zeros([1, 1, self.lstm_unit_size])
             self.lstm_cell = torch.zeros([1, 1, self.lstm_unit_size])
 
             self.lstm_step_count = 0
         self.agent_type = "network"
+        print("b")
         # if model_path == '/NAS2020/Workspaces/DRLGroup/jbhu/code/sample/hokoff/hok1v1/offline_logs/run5-6_1v1qmix/500000_model':
         #     for name, param in self.model.public_soldier.named_parameters():
         # for test without model pool
@@ -130,6 +131,7 @@ class Agent:
         if self.dataset is None:
             self.save_h5_sample = False
         else:
+            print("c")
             ### if there exists some data in tmp-dataset, then copy them all to dataset and clear tmp-dataset, else nothing to do ###
             self.save_h5_sample = True
             if len(self.tmp_dataset.keys()) == 0:
@@ -139,6 +141,7 @@ class Agent:
                 self.tmp_dataset = h5py.File(self.tmp_dataset_name, 'a')
             else:
                 for key in self.tmp_dataset.keys():  ### copy data from tmp dataset to dataset ###
+                    print("d")
                     if key not in self.dataset.keys():
                         self.dataset.create_dataset(
                             key,

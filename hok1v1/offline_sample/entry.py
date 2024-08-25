@@ -128,6 +128,8 @@ def gc_as_lib(argv):
 
     addrs = []
     for i in range(AGENT_NUM):
+        print("id")
+        print(actor_id)
         addrs.append("tcp://0.0.0.0:{}".format(35300 + actor_id * AGENT_NUM + i))
 
     env = HoK1v1(

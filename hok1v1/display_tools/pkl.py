@@ -18,8 +18,11 @@ from config.common_config import ModelConfig
 
 
 # 从文件中加载对象
-with open('~/nas/code/sample/hokoff/hok1v1/datasets/06251815/level-0-1/camp_index_list-actor-0.hdf5', 'rb') as f:
+with open('~/nas/code/sample/hokoff/hok1v1/datasets/06260203/level-0-1/1_0.hdf5', 'rb') as f:
     loaded_camp_index_list = pickle.load(f)
+with open('~/nas/code/sample/hokoff/hok1v1/datasets/06260203/level-0-1/1_1.hdf5', 'rb') as f:
+    loaded_camp_index_list2 = pickle.load(f)
 
 # 打印加载的对象
-print(loaded_camp_index_list)
+print(loaded_camp_index_list["reward"])
+print(loaded_camp_index_list2["reward"])
